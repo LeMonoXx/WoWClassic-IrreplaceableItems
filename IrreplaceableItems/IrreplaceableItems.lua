@@ -10,10 +10,9 @@ local itemTable = JSON:decode(jsonString) -- https://docs.google.com/document/d/
 local pretty_json_text = JSON:encode_pretty(itemTable)
 -- print(pretty_json_text)
 
-local item = getByItemId("1172", itemTable)
+local item = getByItemId(1172, itemTable)
 if(item ~= nil) then
-	print("Item: " ..item.itemId.. "")
-	print("Quest:" ..item.questId.. "");
+	print("Take Item: " ..item.itemId.. "")
 	print("Description: " ..item.description.. "");
 else
 	print("No item found!");
