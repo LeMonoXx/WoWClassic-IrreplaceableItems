@@ -20,7 +20,7 @@ end
 ]]
   print("HELLO")
 
-local function OnQuestAccepted(questIndex, questId)
+local function OnQuestAccepted() --questIndex, questId
 	-- local item = getByQuestId(questId, itemTable)
    -- SendChatMessage("Take Item: " ..item.itemId.. "", "WHISPER", nil, GetUnitName("PLAYER"))
    local item = getByItemId(1172, itemTable)
@@ -29,5 +29,5 @@ end
 
 -- event frame
 local quest = CreateFrame("Frame")
-quest:RegisterEvent("PLAYER_ENTERING_WORLD")
+quest:RegisterEvent("PLAYER_ENTERING_WORLD") -- QUEST_ACCEPTED
 quest:SetScript("OnEvent", OnQuestAccepted)
