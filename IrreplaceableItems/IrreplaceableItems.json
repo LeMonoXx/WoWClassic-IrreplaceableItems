@@ -1,0 +1,22 @@
+[{
+   "itemId": "1172",
+   "description": "This is one of the few equippable items in the game that emits its own light source. It’s worth hanging on to if you’re into roleplaying at all.",
+   "questId": "104",
+   "side": "",
+   "class": ""
+},
+{
+   "itemId": "16788",
+   "description": "A shield with the model of a ship’s wheel. Worth keeping for any aspiring roleplayers looking to complete their pirate set.",
+   "questId": "104",
+   "side": "",
+   "class": ""
+},
+{
+   "itemId": "5462",
+   "description": "This item is completely unique and irreplaceable. Simply keep the quest active in your quest log, and the item will remain in your bags. If you do abandon the quest and the rod is destroyed, simply re-accept the quest (and keep it this time), and you will be able to continue using the rod indefinitely. The rewards from the quest are nowhere near as valuable as the rod itself - so don’t hand it in! Pro tip: this can be used in PvP to ‘fake’ casting a spell in order to bait an interrupt from you opponent.",
+   "questId": "1046",
+   "side": "",
+   "class": ""
+}
+]

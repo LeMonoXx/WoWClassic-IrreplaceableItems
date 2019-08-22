@@ -1,0 +1,6 @@
+## Interface: 11200
+## Title: IrreplaceableItems
+## Notes: Just a Test
+## Author: Monox
+## LoadOnDemand: 1
+IrreplaceableItems.lua
