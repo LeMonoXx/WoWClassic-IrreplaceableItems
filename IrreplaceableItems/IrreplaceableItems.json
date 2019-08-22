@@ -1,4 +1,11 @@
-[
+[   
+   {
+      "itemId":5394,
+      "description":"This item iiiiiiiinncredible! BiS!",
+      "questId":456,
+      "side":"A",
+      "class":""
+   },
    {
       "itemId":1172,
       "description":"This is one of the few equippable items in the game that emits its own light source. It’s worth hanging on to if you’re into roleplaying at all.",
