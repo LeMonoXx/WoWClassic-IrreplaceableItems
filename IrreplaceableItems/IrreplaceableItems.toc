@@ -1,8 +1,8 @@
 ## Interface: 11302
 ## Title: IrreplaceableItems
-## Notes: Just a Test
+## Notes: Lets you know when you accept a quest that results in an Unique, BiS or Rar item, that you might want to keep.
 ## Author: Monox
 ## Version: 1.0
 
-
+QuestItemDB.lua
 IrreplaceableItems.lua
