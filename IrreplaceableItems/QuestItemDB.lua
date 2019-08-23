@@ -8,9 +8,9 @@ QuestItemDBKeys = {
 
 QuestItemDB = {
    [1] = { 
-	  5394, 
+	  11189, 
 	  "This item iiiiiiiinncredible! BiS!", 
-	  456,	  
+	  917,	  
 	  "A",
 	  nil 
 	},
