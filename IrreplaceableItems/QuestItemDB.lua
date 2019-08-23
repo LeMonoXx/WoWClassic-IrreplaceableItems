@@ -72,7 +72,7 @@ QuestItemDB = {
    },
    [10] = {
       11122,
-      "This is the only possible quest reward, so there's no risk of not choosing it, just make sure you keep hold of it. It is the only trinket in the game that provides a mounted movement speed increase. It does stack with the 2% increase from the Riding Skill enchant on gloves, as well as the 4% increase from the Mithril Spurs blacksmithing 'enchant'. It doesn't stack with the Retribution Paladin talent Pursuit of Justice",
+      "This is the only trinket in the game that provides a mounted movement speed increase. It does stack with the 2% increase from the Riding Skill enchant on gloves, as well as the 4% increase from the Mithril Spurs blacksmithing 'enchant'. It doesn't stack with the Retribution Paladin talent Pursuit of Justice",
       2770,
       nil,
       nil
