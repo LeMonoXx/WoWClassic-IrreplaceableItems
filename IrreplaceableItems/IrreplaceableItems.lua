@@ -6,28 +6,21 @@ JSON = (loadfile "JSON/JSON.lua")()
 path = "IrreplaceableItems.json"
 
 jsonString = readAllFromFile(path)
-local itemTable = JSON:decode(jsonString) -- https://docs.google.com/document/d/1TpZA5byhhbVcaNr_USzUQsBnWg4vFHbIYtDn83HK9rM/preview#
--- local pretty_json_text = JSON:encode_pretty(itemTable)
--- print(pretty_json_text)
-[[ 
-local item = getByItemId(1172, itemTable)
-if(item ~= nil) then
-	print("Take Item: " ..item.itemId.. "")
-	print("Description: " ..item.description.. "");
-else
-	print("No item found!");
-end
-]]
-  print("HELLO")
+local itemTable = JSON:decode(jsonString)
 
-local function OnQuestAccepted() --questIndex, questId
+local function OnQuestAccepted(QuestLogIndex, QuestId)
 	-- local item = getByQuestId(questId, itemTable)
-   -- SendChatMessage("Take Item: " ..item.itemId.. "", "WHISPER", nil, GetUnitName("PLAYER"))
-   local item = getByItemId(1172, itemTable)
-   print("Take Item: " ..item.itemId.. "")
+	-- 
+	local item = getByItemId(QuestId, itemTable)
+	if(item ~= nil) then
+		SendChatMessage("Take Item: " ..item.itemId.. "", "WHISPER", nil, GetUnitName("PLAYER"))
+		SendChatMessage("" ..item.description.. "", "WHISPER", nil, GetUnitName("PLAYER"))
+	else
+		SendChatMessage("No Item found... ", "WHISPER", nil, GetUnitName("PLAYER"))
+	end
 end
 
 -- event frame
 local quest = CreateFrame("Frame")
-quest:RegisterEvent("PLAYER_ENTERING_WORLD") -- QUEST_ACCEPTED
+quest:RegisterEvent("QUEST_ACCEPTED") -- QUEST_ACCEPTED
 quest:SetScript("OnEvent", OnQuestAccepted)
