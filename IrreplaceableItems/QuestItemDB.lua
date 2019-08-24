@@ -369,7 +369,7 @@ function getByQuestId(searchId)
 end
 
 
- foundQuest = getByQuestId(7496)
- print(foundQuest[DBKeys['questId']]) 
- foundQuest2 = getByItemId(11122)
- print(foundQuest2[DBKeys['description']])
+-- foundQuest = getByQuestId(7496)
+-- print(foundQuest[DBKeys['questId']]) 
+-- foundQuest2 = getByItemId(11122)
+-- print(foundQuest2[DBKeys['description']])
