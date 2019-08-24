@@ -1,27 +1,29 @@
 -- require('QuestItemDB')
 
-local function OnQuestAccepted(QuestLogIndex, QuestId)
-
-	local dbEntry = getByQuestId(QuestId, QuestItemDB)
+function OnQuestAccepted(QuestLogIndex, QuestId)
+--	DEFAULT_CHAT_FRAME:AddMessage("Event: OnQuestAccepted")
+	local dbEntry = getByQuestId(QuestId)	
 	if(dbEntry ~= nil) then
-	-- DEFAULT_CHAT_FRAME:AddMessage(("|cff6666ccTrackResources|r: %s"):format(str));
-		local itemInfo = GetItemInfo(dbEntry[QuestItemDBKeys['itemId']])
-		SendChatMessage("Take Item: " ..itemInfo.itemLink.. "", "WHISPER", nil, GetUnitName("PLAYER"))
-		SendChatMessage("" ..dbEntry[QuestItemDBKeys['description']].. "", "WHISPER", nil, GetUnitName("PLAYER"))
-	else
-		SendChatMessage("No Item found... ", "WHISPER", nil, GetUnitName("PLAYER"))
+		local item = Item:CreateFromItemID(QuestId)
+		item:ContinueOnItemLoad(function()
+			DEFAULT_CHAT_FRAME:AddMessage("Take Item: " ..item:GetItemLink().. "") 
+			DEFAULT_CHAT_FRAME:AddMessage(..dbEntry:description..) 
+		end)
 	end
 end
 
 -- event frame
 local quest = CreateFrame("Frame")
-quest:RegisterEvent("QUEST_ACCEPTED") 
-quest:SetScript("OnEvent", OnQuestAccepted)
+quest:RegisterEvent("QUEST_ACCEPTED", IIEventHandler.QUEST_ACCEPTED) 
 
--- foundQuest = getByQuestId(7496,QuestItemDB)
--- foundQuest2 = getByItemId(4984,QuestItemDB)
+-- foundQuest = getByQuestId(7496)
+ foundQuest2 = getByItemId(4984)
 -- print(foundQuest[QuestItemDBKeys['questId']]) 
 -- print(foundQuest2[QuestItemDBKeys['itemId']])
--- local itemInfo = GetItemInfo(foundQuest2[QuestItemDBKeys['itemId']])
+-- local itemInfo = GetItemInfo(4984)
+-- DEFAULT_CHAT_FRAME:AddMessage("Take Item: " ..itemInfo.. "")
 -- DEFAULT_CHAT_FRAME:AddMessage("Take Item: " ..itemInfo.itemLink.. "")
 -- DEFAULT_CHAT_FRAME:AddMessage(foundQuest2[QuestItemDBKeys['description']])
+-- DEFAULT_CHAT_FRAME:AddMessage("Take Item: |cff9d9d9d|Hitem:7073::::::::::::|h[Broken Fang]|h|r") 
+
+DEFAULT_CHAT_FRAME:AddMessage("IrreplaceableItems Addon loaded.")

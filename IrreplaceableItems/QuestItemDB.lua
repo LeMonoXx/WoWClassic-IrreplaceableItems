@@ -1,4 +1,4 @@
-QuestItemDBKeys = {
+DBKeys = {
     ['itemId'] = 1, -- int id of the item to choose
     ['description'] = 2, -- string description why the item should be taken
 	['questId'] = 3, -- int id of the quest
@@ -6,7 +6,7 @@ QuestItemDBKeys = {
 	['class'] = 5 -- string name of the class that the reward is for
 }
 
-QuestItemDB = {
+DB = {
    [1] = { 
 	  11189, 
 	  "This item iiiiiiiinncredible! BiS!", 
@@ -345,31 +345,31 @@ QuestItemDB = {
    }
 }
 
-function getByItemId(searchId, myTable)
-	for key,value in pairs(myTable) do
-		local itemId = myTable[key][QuestItemDBKeys['itemId']]
+function getByItemId(searchId)
+	for key,value in pairs(DB) do
+		local itemId = DB[key][DBKeys['itemId']]
 		-- print("itemId is: " ..itemId.. "")
 		if searchId == itemId then
 			-- print("found: " ..itemId.. "")
-			return myTable[key];
+			return DB[key];
 		end
 	end
 end
 
-function getByQuestId(searchId, myTable)
-	for key,value in pairs(myTable) do
-		local questId = myTable[key][QuestItemDBKeys['questId']]
+function getByQuestId(searchId)
+	for key,value in pairs(DB) do
+		local questId = DB[key][DBKeys['questId']]
 		-- print("QuestId is: " ..questId.. "")
 		if searchId == questId then
 			-- print("found: " ..questId.. "")
-			return myTable[key];
+			return DB[key];
 		end
 	end
 	return nil;
 end
 
 
--- foundQuest = getByQuestId(7496,QuestItemDB)
--- print(foundQuest[QuestItemDBKeys['questId']]) 
--- foundQuest2 = getByItemId(11122,QuestItemDB)
--- print(foundQuest2[QuestItemDBKeys['description']])
+ foundQuest = getByQuestId(7496)
+ print(foundQuest[DBKeys['questId']]) 
+ foundQuest2 = getByItemId(11122)
+ print(foundQuest2[DBKeys['description']])

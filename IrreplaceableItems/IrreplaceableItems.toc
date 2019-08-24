@@ -4,5 +4,6 @@
 ## Author: Monox
 ## Version: 1.0
 
+IIEventHandler.lua
 QuestItemDB.lua
 IrreplaceableItems.lua
