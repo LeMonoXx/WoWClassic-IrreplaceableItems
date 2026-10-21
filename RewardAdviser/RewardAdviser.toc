@@ -1,9 +1,0 @@
-## Interface: 11302
-## Title: Reward Adviser
-## Notes: Lets you know when you accept a quest that results in an Unique, BiS or Rar item, that you might want to keep.
-## Author: Monox
-## Version: 0.2
-
-RAEventHandler.lua
-QuestItemDB.lua
-RewardAdviser.lua

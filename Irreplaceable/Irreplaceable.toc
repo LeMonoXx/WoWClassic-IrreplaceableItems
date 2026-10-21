@@ -1,0 +1,13 @@
+## Interface: 16001
+## Title: Irreplaceable
+## Title-deDE: Unersetzlich
+## Notes: Marks one-time items, the right quest reward, and quests that destroy the item.
+## Notes-deDE: Markiert einmalige Items, die richtige Questbelohnung, und Quests, die das Item verschlucken.
+## Author: Monox
+## Version: 0.1.0
+## AllowLoadGameType: forever
+## ExcludeLoadGameType: standard, classic
+
+Locale.lua
+Data.lua
+Core.lua
