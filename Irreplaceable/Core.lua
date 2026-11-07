@@ -16,8 +16,11 @@ local toastBusy
 local toastItemID
 local allowTurnIn
 local cover
-local banner
 local pendingBags
+local offeredQuestID
+local offeredTitle
+local offeredItems
+local recentQuestToast = {}
 
 local function Secret(value)
     return type(issecretvalue) == "function" and issecretvalue(value)
@@ -149,7 +152,7 @@ local function AddTooltipLines(tooltip, itemID)
     ShowRail(tooltip, r, g, b)
     if tooltip.GetOwner then
         local owner = tooltip:GetOwner()
-        if owner and owner ~= UIParent and owner ~= tooltip and owner.CreateTexture then
+        if owner and owner ~= UIParent and owner ~= tooltip and (owner.info or owner.GetBag or owner.bag ~= nil) then
             ns:MarkButton(owner, itemID)
         end
     end
@@ -180,21 +183,22 @@ local function ApplyFlat(frame, r, g, b)
     end
 end
 
-local function ShowNextToast()
-    if toastBusy then
-        return
+local function BlockHeight(fontString)
+    local height = fontString:GetStringHeight()
+    if type(height) == "number" and height > 1 then
+        return height
     end
-    local itemID = table.remove(toastQueue, 1)
-    if not itemID then
-        return
-    end
+    return 14
+end
+
+local function ShowLootNotice(itemID)
     local entry = ns.items[itemID]
     if not entry then
-        ShowNextToast()
-        return
+        return false
     end
-
-    toastBusy = true
+    if ns.questNotice then
+        ns.questNotice:Hide()
+    end
     toastItemID = itemID
     local frame = ns.toast
     local r, g, b = unpack(LabelColor(entry.action))
@@ -205,8 +209,123 @@ local function ShowNextToast()
     frame.name:SetTextColor(INK[1], INK[2], INK[3])
     frame.body:SetText(Label(entry) .. "\n" .. Why(entry))
     frame.icon:SetTexture(ItemIcon(itemID) or "Interface\\Icons\\INV_Misc_QuestionMark")
+    local function fit()
+        local height = 12 + BlockHeight(frame.title) + 2 + BlockHeight(frame.name) + 6 + BlockHeight(frame.body) + 14
+        if height < 68 then
+            height = 68
+        elseif height > 320 then
+            height = 320
+        end
+        frame:SetHeight(height)
+    end
+    fit()
     frame:Show()
+    C_Timer.After(0, function()
+        if toastItemID == itemID and frame:IsShown() then
+            fit()
+        end
+    end)
+    return frame
+end
 
+local function ShowQuestNotice(notice)
+    if ns.toast then
+        ns.toast:Hide()
+    end
+    toastItemID = nil
+    local frame = ns.questNotice
+    local items = notice.items or {}
+    local first = items[1] and ns.items[items[1]]
+    local r, g, b = unpack(first and LabelColor(first.action) or GOLD)
+    ApplyFlat(frame, r, g, b)
+    frame.kicker:SetText(Text("QUEST_ACCEPTED"))
+    frame.quest:SetText(notice.title or "")
+    local shown = 0
+    for index, row in ipairs(frame.rows) do
+        local itemID = items[index]
+        local entry = itemID and ns.items[itemID]
+        if itemID and entry then
+            shown = shown + 1
+            row.itemID = itemID
+            local ar, ag, ab = unpack(LabelColor(entry.action))
+            row.icon:SetTexture(ItemIcon(itemID) or "Interface\\Icons\\INV_Misc_QuestionMark")
+            row.name:SetText(ItemName(itemID))
+            row.action:SetText(Label(entry))
+            row.action:SetTextColor(ar, ag, ab)
+            row.why:SetText(Why(entry))
+            row.frameTop:SetVertexColor(ar, ag, ab, 1)
+            row.frameBottom:SetVertexColor(ar, ag, ab, 1)
+            row.frameLeft:SetVertexColor(ar, ag, ab, 1)
+            row.frameRight:SetVertexColor(ar, ag, ab, 1)
+            row:Show()
+        else
+            row.itemID = nil
+            row:Hide()
+        end
+    end
+    local function fit()
+        local cursor = 12 + BlockHeight(frame.kicker) + 2 + BlockHeight(frame.quest) + 8
+        frame.rule:ClearAllPoints()
+        frame.rule:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -cursor)
+        frame.rule:SetPoint("RIGHT", frame, "RIGHT", -16, 0)
+        cursor = cursor + 10
+        for index = 1, shown do
+            local row = frame.rows[index]
+            row.why:SetWidth(382)
+            local textHeight = BlockHeight(row.name) + 1 + BlockHeight(row.action) + 2 + BlockHeight(row.why)
+            local rowHeight = textHeight
+            if rowHeight < 36 then
+                rowHeight = 36
+            end
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -cursor)
+            row:SetPoint("RIGHT", frame, "RIGHT", -16, 0)
+            row:SetHeight(rowHeight)
+            cursor = cursor + rowHeight + 10
+        end
+        local height = cursor + 6
+        if height < 96 then
+            height = 96
+        elseif height > 360 then
+            height = 360
+        end
+        frame:SetHeight(height)
+    end
+    fit()
+    frame:Show()
+    C_Timer.After(0, function()
+        if frame:IsShown() then
+            fit()
+        end
+    end)
+    return frame
+end
+
+local function ShowNextToast()
+    if toastBusy then
+        return
+    end
+    local notice = table.remove(toastQueue, 1)
+    if not notice then
+        return
+    end
+    local frame
+    if type(notice) == "table" and notice.kind == "quest" then
+        frame = ShowQuestNotice(notice)
+    else
+        local itemID = type(notice) == "table" and notice.itemID or notice
+        local entry = itemID and ns.items[itemID]
+        if not entry then
+            ShowNextToast()
+            return
+        end
+        frame = ShowLootNotice(itemID)
+    end
+    if not frame then
+        ShowNextToast()
+        return
+    end
+    toastBusy = true
     C_Timer.After(8, function()
         frame:Hide()
         toastBusy = false
@@ -218,13 +337,13 @@ function ns:Toast(itemID)
     if not itemID then
         return
     end
-    toastQueue[#toastQueue + 1] = itemID
+    toastQueue[#toastQueue + 1] = { kind = "loot", itemID = itemID }
     ShowNextToast()
 end
 
 local function BuildToast()
     local frame = CreateFrame("Frame", "IrreplaceableToast", UIParent, "BackdropTemplate")
-    frame:SetSize(380, 108)
+    frame:SetSize(440, 68)
     frame:SetPoint("TOP", UIParent, "TOP", 0, -120)
     frame:SetFrameStrata("DIALOG")
     frame:Hide()
@@ -232,28 +351,117 @@ local function BuildToast()
 
     local icon = frame:CreateTexture(nil, "ARTWORK")
     icon:SetSize(36, 36)
-    icon:SetPoint("LEFT", 16, 0)
+    icon:SetPoint("TOPLEFT", 14, -14)
     frame.icon = icon
 
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, 2)
+    title:SetPoint("TOPLEFT", 62, -12)
+    title:SetPoint("RIGHT", frame, "RIGHT", -14, 0)
     title:SetJustifyH("LEFT")
     frame.title = title
 
     local name = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     name:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
+    name:SetPoint("RIGHT", frame, "RIGHT", -14, 0)
     name:SetJustifyH("LEFT")
     frame.name = name
 
     local body = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    body:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
-    body:SetPoint("RIGHT", frame, "RIGHT", -16, 0)
+    body:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -6)
+    body:SetPoint("RIGHT", frame, "RIGHT", -14, 0)
     body:SetJustifyH("LEFT")
     body:SetWordWrap(true)
     body:SetTextColor(CREAM[1], CREAM[2], CREAM[3])
     frame.body = body
 
     ns.toast = frame
+end
+
+local function BuildQuestNotice()
+    local frame = CreateFrame("Frame", "IrreplaceableQuestNotice", UIParent, "BackdropTemplate")
+    frame:SetSize(460, 120)
+    frame:SetPoint("TOP", UIParent, "TOP", 0, -120)
+    frame:SetFrameStrata("DIALOG")
+    frame:Hide()
+    ApplyFlat(frame, GOLD[1], GOLD[2], GOLD[3])
+
+    local kicker = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    kicker:SetPoint("TOPLEFT", 16, -12)
+    kicker:SetPoint("RIGHT", frame, "RIGHT", -16, 0)
+    kicker:SetJustifyH("LEFT")
+    kicker:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    frame.kicker = kicker
+
+    local quest = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    quest:SetPoint("TOPLEFT", kicker, "BOTTOMLEFT", 0, -2)
+    quest:SetPoint("RIGHT", frame, "RIGHT", -16, 0)
+    quest:SetJustifyH("LEFT")
+    quest:SetTextColor(INK[1], INK[2], INK[3])
+    frame.quest = quest
+
+    local rule = frame:CreateTexture(nil, "ARTWORK")
+    rule:SetTexture("Interface\\Buttons\\WHITE8X8")
+    rule:SetVertexColor(GOLD[1], GOLD[2], GOLD[3], 0.4)
+    rule:SetHeight(1)
+    frame.rule = rule
+
+    frame.rows = {}
+    for index = 1, 3 do
+        local row = CreateFrame("Frame", nil, frame)
+        row:SetHeight(36)
+        local icon = row:CreateTexture(nil, "ARTWORK")
+        icon:SetSize(36, 36)
+        icon:SetPoint("TOPLEFT", 0, 0)
+        row.icon = icon
+
+        local function edge()
+            local texture = row:CreateTexture(nil, "OVERLAY")
+            texture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            return texture
+        end
+        row.frameTop = edge()
+        row.frameBottom = edge()
+        row.frameLeft = edge()
+        row.frameRight = edge()
+        row.frameTop:SetHeight(2)
+        row.frameTop:SetPoint("TOPLEFT", icon, "TOPLEFT")
+        row.frameTop:SetPoint("TOPRIGHT", icon, "TOPRIGHT")
+        row.frameBottom:SetHeight(2)
+        row.frameBottom:SetPoint("BOTTOMLEFT", icon, "BOTTOMLEFT")
+        row.frameBottom:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT")
+        row.frameLeft:SetWidth(2)
+        row.frameLeft:SetPoint("TOPLEFT", icon, "TOPLEFT", 0, -2)
+        row.frameLeft:SetPoint("BOTTOMLEFT", icon, "BOTTOMLEFT", 0, 2)
+        row.frameRight:SetWidth(2)
+        row.frameRight:SetPoint("TOPRIGHT", icon, "TOPRIGHT", 0, -2)
+        row.frameRight:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 0, 2)
+
+        local name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, 1)
+        name:SetWidth(382)
+        name:SetJustifyH("LEFT")
+        name:SetTextColor(INK[1], INK[2], INK[3])
+        row.name = name
+
+        local action = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        action:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -1)
+        action:SetWidth(382)
+        action:SetJustifyH("LEFT")
+        row.action = action
+
+        local why = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        why:SetPoint("TOPLEFT", action, "BOTTOMLEFT", 0, -2)
+        why:SetWidth(382)
+        why:SetJustifyH("LEFT")
+        why:SetWordWrap(true)
+        why:SetTextColor(CREAM[1], CREAM[2], CREAM[3])
+        row.why = why
+
+        row:Hide()
+        frame.rows[index] = row
+    end
+
+    ns.questNotice = frame
 end
 
 local function ScanBags()
@@ -296,7 +504,9 @@ local function OnBags()
     local now = ScanBags()
     for itemID, stack in pairs(now) do
         local previous = counts[itemID] or 0
-        if stack > previous and ns:Entry(itemID) then
+        local told = recentQuestToast[itemID]
+        local justFromQuest = told and GetTime() - told < 3
+        if stack > previous and ns:Entry(itemID) and not justFromQuest then
             ns:Toast(itemID)
         end
     end
@@ -373,6 +583,303 @@ local function ButtonItemID(button)
     return nil
 end
 
+local function IsLocked(info)
+    if type(info) ~= "table" then
+        return false
+    end
+    local locked = info.isLocked
+    if locked == nil or Secret(locked) then
+        return false
+    end
+    return locked == true
+end
+
+local function KnownSlotID(button)
+    local info = button.info
+    if type(info) ~= "table" then
+        return nil, false
+    end
+    if IsLocked(info) then
+        return nil, true
+    end
+    local id = info.itemID
+    if type(id) == "number" and not Secret(id) then
+        return id, true
+    end
+    local fromLink = ItemIDFromLink(info.hyperlink)
+    if fromLink then
+        return fromLink, true
+    end
+    if id == nil and info.hyperlink == nil and not button.hasItem then
+        return nil, true
+    end
+    return nil, false
+end
+
+local function ButtonLiveItemID(button)
+    local info = button.info
+    if type(info) == "table" then
+        local id = info.itemID
+        if type(id) == "number" and not Secret(id) then
+            return id
+        end
+        local fromLink = ItemIDFromLink(info.hyperlink)
+        if fromLink then
+            return fromLink
+        end
+        if id == nil and info.hyperlink == nil then
+            return nil
+        end
+    end
+    local id = ButtonItemID(button)
+    if id then
+        return id
+    end
+    local bag
+    if button.GetBagID then
+        bag = button:GetBagID()
+    elseif button.GetBag then
+        bag = button:GetBag()
+    else
+        bag = button.bag
+    end
+    local slot = button.GetID and button:GetID()
+    if type(bag) == "number" and type(slot) == "number" and C_Container and C_Container.GetContainerItemID then
+        local ok, itemID = pcall(C_Container.GetContainerItemID, bag, slot)
+        if ok and type(itemID) == "number" and not Secret(itemID) then
+            return itemID
+        end
+    end
+end
+
+local hookedMeta = {}
+
+local function WatchButton(button)
+    if button.HookScript and not button.irreplaceableWatch then
+        button.irreplaceableWatch = true
+        button:HookScript("OnShow", function(self)
+            ns:MarkButton(self)
+        end)
+        button:HookScript("OnHide", function(self)
+            if self.irreplaceableGlowFrame then
+                self.irreplaceableGlowFrame:Hide()
+            end
+            if self.irreplaceableFrame then
+                self.irreplaceableFrame:Hide()
+            end
+        end)
+    end
+    local meta = getmetatable(button)
+    if not meta or hookedMeta[meta] then
+        return
+    end
+    hookedMeta[meta] = true
+    if type(meta.Update) == "function" then
+        local original = meta.Update
+        meta.Update = function(self, ...)
+            original(self, ...)
+            ns:MarkButton(self)
+        end
+    end
+    if type(meta.UpdateLocked) == "function" then
+        local original = meta.UpdateLocked
+        meta.UpdateLocked = function(self, ...)
+            original(self, ...)
+            ns:MarkButton(self)
+        end
+    end
+end
+
+local function MarkGroup(group)
+    if type(group) ~= "table" then
+        return
+    end
+    if type(group.byBag) == "table" then
+        for _, slots in pairs(group.byBag) do
+            if type(slots) == "table" then
+                for _, button in pairs(slots) do
+                    if type(button) == "table" and button.CreateTexture and button.IsShown and button:IsShown() then
+                        ns:MarkButton(button)
+                    end
+                end
+            end
+        end
+        return
+    end
+    if type(group.buttons) == "table" then
+        for _, button in ipairs(group.buttons) do
+            ns:MarkButton(button)
+        end
+    end
+end
+
+local function MarkOpenBags()
+    for i = 1, 4 do
+        for _, name in ipairs({ "BagBrotherInventory", "BagBrotherBank", "BagBrotherGuild" }) do
+            local frame = _G[name .. i]
+            if frame and frame.IsShown and frame:IsShown() then
+                MarkGroup(frame.ItemGroup)
+            end
+        end
+    end
+    local children = { UIParent:GetChildren() }
+    for i = 1, #children do
+        local child = children[i]
+        if child:IsShown() then
+            MarkGroup(child.ItemGroup)
+            if child.GetChildren then
+                local nested = { child:GetChildren() }
+                for n = 1, #nested do
+                    local grand = nested[n]
+                    if grand:IsShown() and grand.byBag then
+                        MarkGroup(grand)
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function MarkAddonButtons()
+    for _, prefix in ipairs({ "BagBrotherItem", "BagBrotherContainerItem" }) do
+        for i = 1, 400 do
+            local button = _G[prefix .. i]
+            if not button then
+                break
+            end
+            ns:MarkButton(button)
+        end
+    end
+end
+
+local function PointOnRect(p, w, h)
+    local peri = 2 * (w + h)
+    local d = p % 1
+    if d < 0 then
+        d = d + 1
+    end
+    d = d * peri
+    if d <= w then
+        return -w / 2 + d, h / 2, "h"
+    end
+    d = d - w
+    if d <= h then
+        return w / 2, h / 2 - d, "v"
+    end
+    d = d - h
+    if d <= w then
+        return w / 2 - d, -h / 2, "h"
+    end
+    d = d - w
+    return -w / 2, -h / 2 + d, "v"
+end
+
+local function PlaceDash(texture, frame, p, w, h, length, alpha)
+    local x, y, edge = PointOnRect(p, w, h)
+    texture:ClearAllPoints()
+    texture:SetPoint("CENTER", frame, "CENTER", x, y)
+    if edge == "h" then
+        texture:SetSize(length, 3)
+    else
+        texture:SetSize(3, length)
+    end
+    texture:SetAlpha(alpha)
+end
+
+local function DriveGlow(frame)
+    local w = frame:GetWidth()
+    local h = frame:GetHeight()
+    if not w or not h or w < 8 or h < 8 then
+        return
+    end
+    local now = GetTime()
+    local lap = now / 1.6
+    local breath = 0.14 + 0.22 * (0.5 + 0.5 * math.sin(now * 2.2))
+    frame.halo:SetSize(w * 1.7, h * 1.7)
+    frame.halo:SetAlpha(breath)
+    if frame.halo.SetRotation then
+        frame.halo:SetRotation(now * 0.45)
+    end
+    local length = math.max(12, math.min(w, h) * 0.48)
+    for i = 1, 4 do
+        local p = lap + (i - 1) / 4
+        PlaceDash(frame.sparks[i], frame, p, w, h, length, 1)
+        PlaceDash(frame.tails[i], frame, p - 0.05, w, h, length * 0.62, 0.38)
+    end
+end
+
+local function SlotCleared(button)
+    local info = button.info
+    if type(info) == "table" then
+        local locked = info.isLocked
+        if locked == true and not Secret(locked) then
+            return true
+        end
+        if not info.itemID and not info.hyperlink then
+            return true
+        end
+    end
+    return button.hasItem == false
+end
+
+local function ReadSlot(button)
+    local info = button.info
+    if type(info) == "table" then
+        local locked = info.isLocked
+        if locked == true and not Secret(locked) then
+            return nil
+        end
+        local id = info.itemID
+        if type(id) == "number" and not Secret(id) then
+            return id
+        end
+        local fromLink = ItemIDFromLink(info.hyperlink)
+        if fromLink then
+            return fromLink
+        end
+    end
+    local bag
+    if button.GetBag then
+        bag = button:GetBag()
+    elseif button.GetBagID then
+        bag = button:GetBagID()
+    else
+        bag = button.bag
+    end
+    local slot = button.GetID and button:GetID()
+    if type(bag) == "number" and type(slot) == "number" and not Secret(bag) and not Secret(slot) then
+        if C_Container and C_Container.GetContainerItemLink then
+            local ok, link = pcall(C_Container.GetContainerItemLink, bag, slot)
+            local fromLink = ok and ItemIDFromLink(link)
+            if fromLink then
+                return fromLink
+            end
+        end
+        if C_Container and C_Container.GetContainerItemID then
+            local ok, id = pcall(C_Container.GetContainerItemID, bag, slot)
+            if ok and type(id) == "number" and not Secret(id) then
+                return id
+            end
+        end
+        if C_TooltipInfo and C_TooltipInfo.GetBagItem then
+            local ok, data = pcall(C_TooltipInfo.GetBagItem, bag, slot)
+            if ok and type(data) == "table" then
+                local id = data.id
+                if type(id) == "number" and not Secret(id) then
+                    return id
+                end
+                local fromTip = ItemIDFromLink(data.hyperlink)
+                if fromTip then
+                    return fromTip
+                end
+            end
+        end
+    end
+    if type(info) == "table" and not button.hasItem then
+        return nil
+    end
+end
+
 local function EnsureIconFrame(button, anchor)
     local frame = button.irreplaceableFrame
     if frame then
@@ -408,6 +915,25 @@ local function EnsureIconFrame(button, anchor)
     frame.left:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 2)
     frame.right:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, -2)
     frame.right:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 2)
+    local halo = frame:CreateTexture(nil, "BACKGROUND")
+    halo:SetTexture("Interface\\Cooldown\\star4")
+    halo:SetBlendMode("ADD")
+    halo:SetPoint("CENTER", frame, "CENTER", 0, 0)
+    frame.halo = halo
+    local function dash()
+        local texture = frame:CreateTexture(nil, "OVERLAY")
+        texture:SetTexture("Interface\\SpellActivationOverlay\\IconAlertAnts")
+        texture:SetBlendMode("ADD")
+        texture:SetTexCoord(0.0625, 0.9375, 0.0625, 0.9375)
+        return texture
+    end
+    frame.sparks = {}
+    frame.tails = {}
+    for i = 1, 4 do
+        frame.sparks[i] = dash()
+        frame.tails[i] = dash()
+    end
+    frame:SetScript("OnUpdate", DriveGlow)
     button.irreplaceableFrame = frame
     return frame
 end
@@ -416,22 +942,25 @@ function ns:MarkButton(button, itemID)
     if not button or not button.CreateTexture then
         return
     end
-    if not itemID then
-        local bag, slot = ButtonBagSlot(button)
-        if bag and slot and C_Container and C_Container.GetContainerItemID then
-            itemID = C_Container.GetContainerItemID(bag, slot)
+    WatchButton(button)
+    if type(button.info) == "table" or button.GetBag ~= nil or button.bag ~= nil then
+        local live = ReadSlot(button)
+        if live then
+            itemID = live
+        elseif SlotCleared(button) then
+            itemID = nil
         end
     end
     local entry = itemID and not Secret(itemID) and ns:Entry(itemID)
-    if button.irreplaceableGlow then
-        button.irreplaceableGlow:Hide()
+    if button.irreplaceableGlowFrame then
+        button.irreplaceableGlowFrame:Hide()
     end
     local anchor = button.Icon or button.icon or button.IconTexture or button
     local frame = EnsureIconFrame(button, anchor)
     if not frame then
         return
     end
-    if entry then
+    if entry and (not button.IsShown or button:IsShown()) then
         local r, g, b = unpack(LabelColor(entry.action))
         frame:ClearAllPoints()
         frame:SetPoint("TOPLEFT", anchor, "TOPLEFT", 0, 0)
@@ -440,6 +969,11 @@ function ns:MarkButton(button, itemID)
         frame.bottom:SetVertexColor(r, g, b, 1)
         frame.left:SetVertexColor(r, g, b, 1)
         frame.right:SetVertexColor(r, g, b, 1)
+        frame.halo:SetVertexColor(r, g, b, 1)
+        for i = 1, 4 do
+            frame.sparks[i]:SetVertexColor(r, g, b, 1)
+            frame.tails[i]:SetVertexColor(r, g, b, 1)
+        end
         frame:Show()
     else
         frame:Hide()
@@ -502,29 +1036,6 @@ function ns:MarkLoot()
             walk(root, 0)
         end
     end
-end
-
-local function TagButton(button, entry)
-    local tag = button.irreplaceableTag
-    if not tag then
-        tag = CreateFrame("Frame", nil, button)
-        tag:SetSize(140, 28)
-        tag:SetPoint("BOTTOM", button, "TOP", 0, 0)
-        tag:SetFrameStrata("HIGH")
-        local text = tag:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        text:SetAllPoints()
-        text:SetJustifyH("CENTER")
-        tag.text = text
-        button.irreplaceableTag = tag
-    end
-    if not entry then
-        tag:Hide()
-        return
-    end
-    local r, g, b = unpack(LabelColor(entry.action))
-    tag.text:SetText(Label(entry))
-    tag.text:SetTextColor(r, g, b)
-    tag:Show()
 end
 
 local function EachRewardButton(visitor)
@@ -653,28 +1164,61 @@ local function EnsureCover()
     return cover
 end
 
-local function EnsureBanner()
-    if banner then
-        return banner
+local function RememberOffer()
+    local items = {}
+    local seen = {}
+    for _, kind in ipairs({ "choice", "reward" }) do
+        for _, itemID in ipairs(QuestItems(kind)) do
+            local entry = ns:Entry(itemID)
+            if entry and not seen[itemID] and (entry.action == "pick" or entry.action == "avoid" or entry.action == "keep") then
+                seen[itemID] = true
+                items[#items + 1] = itemID
+            end
+        end
     end
-    banner = CreateFrame("Frame", "IrreplaceableQuestBanner", UIParent, "BackdropTemplate")
-    banner:SetSize(360, 72)
-    banner:SetFrameStrata("HIGH")
-    banner:Hide()
-    ApplyFlat(banner, GOLD[1], GOLD[2], GOLD[3])
-    local title = banner:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOPLEFT", 14, -12)
-    title:SetPoint("RIGHT", banner, "RIGHT", -12, 0)
-    title:SetJustifyH("LEFT")
-    banner.title = title
-    local body = banner:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    body:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
-    body:SetPoint("RIGHT", banner, "RIGHT", -12, 0)
-    body:SetJustifyH("LEFT")
-    body:SetWordWrap(true)
-    body:SetTextColor(CREAM[1], CREAM[2], CREAM[3])
-    banner.body = body
-    return banner
+    if #items > 0 then
+        offeredQuestID = OpenQuestID()
+        offeredItems = items
+        if GetTitleText then
+            local ok, title = pcall(GetTitleText)
+            if ok and type(title) == "string" and title ~= "" then
+                offeredTitle = title
+            end
+        end
+    end
+end
+
+local function QuestTitleFor(questID)
+    if offeredTitle and offeredTitle ~= "" then
+        return offeredTitle
+    end
+    if questID and C_QuestLog and C_QuestLog.GetTitleForQuestID then
+        local ok, title = pcall(C_QuestLog.GetTitleForQuestID, questID)
+        if ok and type(title) == "string" and title ~= "" then
+            return title
+        end
+    end
+    return Text("QUEST_ACCEPTED")
+end
+
+local function AnnounceAccepted(questID)
+    if not offeredItems then
+        return
+    end
+    if offeredQuestID and questID and offeredQuestID ~= questID then
+        return
+    end
+    local now = GetTime()
+    local items = offeredItems
+    local title = QuestTitleFor(questID)
+    for _, itemID in ipairs(items) do
+        recentQuestToast[itemID] = now
+    end
+    toastQueue[#toastQueue + 1] = { kind = "quest", title = title, items = items }
+    ShowNextToast()
+    offeredQuestID = nil
+    offeredTitle = nil
+    offeredItems = nil
 end
 
 local function RefreshQuest()
@@ -688,35 +1232,13 @@ local function RefreshQuest()
                 itemID = ItemIDFromLink(link)
             end
         end
-        TagButton(button, itemID and ns:Entry(itemID))
+        if button.irreplaceableTag then
+            button.irreplaceableTag:Hide()
+        end
+        ns:MarkButton(button, itemID)
     end)
 
-    local note
-    for _, kind in ipairs({ "choice", "reward" }) do
-        for _, itemID in ipairs(QuestItems(kind)) do
-            local entry = ns:Entry(itemID)
-            if entry and (entry.action == "pick" or entry.action == "avoid" or entry.action == "keep") then
-                if entry.action == "pick" or not note then
-                    note = entry
-                end
-            end
-        end
-    end
-
-    local bar = EnsureBanner()
-    local anchor = QuestFrame or QuestInfoFrame
-    if note and anchor then
-        local r, g, b = unpack(LabelColor(note.action))
-        ApplyFlat(bar, r, g, b)
-        bar.title:SetText(Text("TITLE"))
-        bar.title:SetTextColor(r, g, b)
-        bar.body:SetText(Label(note) .. "\n" .. Why(note))
-        bar:ClearAllPoints()
-        bar:SetPoint("BOTTOM", anchor, "TOP", 0, -8)
-        bar:Show()
-    else
-        bar:Hide()
-    end
+    RememberOffer()
 
     local reasons = HoldOnThisQuest()
     local button = CompleteButton()
@@ -820,19 +1342,27 @@ frame:SetScript("OnEvent", function(_, event, ...)
     elseif event == "QUEST_COMPLETE" or event == "QUEST_PROGRESS" or event == "QUEST_DETAIL" or event == "QUEST_ITEM_UPDATE" then
         allowTurnIn = false
         C_Timer.After(0, RefreshQuest)
+    elseif event == "QUEST_ACCEPTED" then
+        local questID = ...
+        AnnounceAccepted(questID)
     elseif event == "QUEST_FINISHED" or event == "QUEST_TURNED_IN" then
         allowTurnIn = false
         if cover then
             cover:Hide()
-        end
-        if banner then
-            banner:Hide()
         end
     elseif event == "ITEM_DATA_LOAD_RESULT" then
         local itemID = ...
         if toastItemID and itemID == toastItemID and ns.toast and ns.toast:IsShown() then
             ns.toast.name:SetText(ItemName(itemID))
             ns.toast.icon:SetTexture(ItemIcon(itemID) or "Interface\\Icons\\INV_Misc_QuestionMark")
+        end
+        if ns.questNotice and ns.questNotice:IsShown() then
+            for _, row in ipairs(ns.questNotice.rows) do
+                if row.itemID == itemID and row:IsShown() then
+                    row.name:SetText(ItemName(itemID))
+                    row.icon:SetTexture(ItemIcon(itemID) or "Interface\\Icons\\INV_Misc_QuestionMark")
+                end
+            end
         end
     end
 end)
@@ -844,6 +1374,7 @@ end
 InstallPopup()
 InstallTooltip()
 BuildToast()
+BuildQuestNotice()
 
 Register("PLAYER_ENTERING_WORLD")
 Register("BAG_UPDATE_DELAYED")
@@ -855,6 +1386,7 @@ Register("QUEST_COMPLETE")
 Register("QUEST_PROGRESS")
 Register("QUEST_DETAIL")
 Register("QUEST_ITEM_UPDATE")
+Register("QUEST_ACCEPTED")
 Register("QUEST_FINISHED")
 Register("QUEST_TURNED_IN")
 Register("ITEM_DATA_LOAD_RESULT")
@@ -866,3 +1398,35 @@ if type(QuestInfo_ShowRewards) == "function" then
 end
 
 print("|cffffd200" .. Text("TITLE") .. "|r " .. Text("LOADED"))
+
+local function SoonMarkBags()
+    C_Timer.After(0, function()
+        ns:MarkBags()
+        MarkAddonButtons()
+        MarkOpenBags()
+    end)
+    C_Timer.After(0.2, function()
+        ns:MarkBags()
+        MarkAddonButtons()
+        MarkOpenBags()
+    end)
+end
+
+if type(hooksecurefunc) == "function" then
+    for _, name in ipairs({ "ToggleAllBags", "ToggleBag", "ToggleBackpack", "OpenAllBags", "OpenBackpack" }) do
+        if type(_G[name]) == "function" then
+            hooksecurefunc(name, SoonMarkBags)
+        end
+    end
+end
+
+local glowWatch = CreateFrame("Frame")
+glowWatch:SetScript("OnUpdate", function(self, elapsed)
+    self.wait = (self.wait or 0) + elapsed
+    if self.wait < 0.4 then
+        return
+    end
+    self.wait = 0
+    MarkAddonButtons()
+    MarkOpenBags()
+end)
